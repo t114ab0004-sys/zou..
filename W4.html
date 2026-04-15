@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>兵營指揮系統</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f5f4f0;
+    --bg-3: #eeede8;
+    --text: #1a1a18;
+    --text-2: #6b6a66;
+    --border: rgba(0,0,0,0.12);
+    --border-2: rgba(0,0,0,0.25);
+    --gold: #BA7517;
+    --gold-bg: #FAEEDA;
+    --gold-text: #633806;
+    --blue: #378ADD;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --teal-bg: #E1F5EE;
+    --teal-text: #085041;
+    --green: #0F6E56;
+    --red: #A32D2D;
+    --r-md: 8px;
+    --r-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg-2: #2a2a27;
+      --bg-3: #333330;
+      --text: #f0efea;
+      --text-2: #9b9a95;
+      --border: rgba(255,255,255,0.1);
+      --border-2: rgba(255,255,255,0.22);
+      --gold: #FAC775;
+      --gold-bg: #633806;
+      --gold-text: #FAC775;
+      --blue: #85B7EB;
+      --blue-bg: #0C447C;
+      --blue-text: #B5D4F4;
+      --teal-bg: #085041;
+      --teal-text: #9FE1CB;
+      --green: #5DCAA5;
+      --red: #F09595;
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: var(--bg-3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  #app {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: var(--text-2);
+    margin-bottom: 1.75rem;
+  }
+  .top-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 0.85rem 1rem;
+  }
+  .stat-label { font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  .stat-val { font-size: 24px; font-weight: 600; }
+  .gold-val { color: var(--gold); }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .barracks-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .barracks-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 1rem;
+    min-height: 88px;
+  }
+  .barracks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .barracks-name { font-size: 14px; font-weight: 600; }
+  .barracks-count {
+    font-size: 11px;
+    color: var(--text-2);
+    background: var(--bg-2);
+    padding: 2px 8px;
+    border-radius: 99px;
+  }
+  .queue-items { display: flex; gap: 6px; flex-wrap: wrap; min-height: 28px; align-items: center; }
+  .unit-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 99px;
+  }
+  .pill-a { background: var(--blue-bg); color: var(--blue-text); }
+  .pill-b { background: var(--teal-bg); color: var(--teal-text); }
+  .empty-msg { font-size: 12px; color: var(--text-2); font-style: italic; }
+  .order-cards { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .order-btn {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.12s, box-shadow 0.12s;
+    color: var(--text);
+  }
+  .order-btn:hover { border-color: var(--border-2); }
+  .order-btn.selected {
+    border: 2px solid var(--blue);
+    box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+  }
+  .order-unit { font-size: 14px; font-weight: 500; }
+  .order-cost { font-size: 12px; color: var(--gold); margin-top: 2px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .btn-main {
+    background: var(--bg);
+    border: 0.5px solid var(--border-2);
+    border-radius: var(--r-md);
+    padding: 9px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.12s;
+  }
+  .btn-main:hover { background: var(--bg-2); }
+  .btn-primary {
+    background: var(--blue);
+    border: none;
+    border-radius: var(--r-md);
+    padding: 9px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+    transition: opacity 0.12s;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .deployed-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; min-height: 28px; }
+  .deployed-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: var(--gold-bg);
+    color: var(--gold-text);
+  }
+  .log {
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .log-header {
+    padding: 0.65rem 1rem;
+    background: var(--bg-2);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+  .log-body {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .log-line { font-size: 13px; line-height: 1.6; }
+  .log-line.round-head { font-weight: 600; color: var(--text-2); margin-top: 8px; }
+  .log-line.success { color: var(--green); }
+  .log-line.warn { color: var(--gold); }
+  .log-line.error { color: var(--red); }
+  .log-line.info { color: var(--blue); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>⚔️ 兵營指揮系統</h1>
+  <p class="subtitle">管理你的 A/B 廠生產線，發號施令招募英雄</p>
+
+  <div class="top-bar">
+    <div class="stat-card">
+      <div class="stat-label">黃金庫存</div>
+      <div class="stat-val gold-val" id="gold-display">150</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">當前回合</div>
+      <div class="stat-val" id="round-display">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">已部署兵力</div>
+      <div class="stat-val" id="deployed-count">0</div>
+    </div>
+  </div>
+
+  <div class="barracks-row">
+    <div class="barracks-card">
+      <div class="barracks-header">
+        <span class="barracks-name">🏭 A 廠</span>
+        <span class="barracks-count" id="a-count">0 / 2</span>
+      </div>
+      <div class="queue-items" id="barracks-a-items"><span class="empty-msg">待命中</span></div>
+    </div>
+    <div class="barracks-card">
+      <div class="barracks-header">
+        <span class="barracks-name">🏭 B 廠</span>
+        <span class="barracks-count" id="b-count">0 / 2</span>
+      </div>
+      <div class="queue-items" id="barracks-b-items"><span class="empty-msg">待命中</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">選擇本回合訂單</div>
+  <div class="order-cards">
+    <button class="order-btn selected" data-unit="劍士" data-cost="20" onclick="selectOrder(this)">
+      <div class="order-unit">⚔️ 劍士</div>
+      <div class="order-cost">20 黃金</div>
+    </button>
+    <button class="order-btn" data-unit="弓手" data-cost="30" onclick="selectOrder(this)">
+      <div class="order-unit">🏹 弓手</div>
+      <div class="order-cost">30 黃金</div>
+    </button>
+    <button class="order-btn" data-unit="騎士" data-cost="50" onclick="selectOrder(this)">
+      <div class="order-unit">🐴 騎士</div>
+      <div class="order-cost">50 黃金</div>
+    </button>
+    <button class="order-btn" data-unit="投石車" data-cost="40" onclick="selectOrder(this)">
+      <div class="order-unit">🪨 投石車</div>
+      <div class="order-cost">40 黃金</div>
+    </button>
+    <button class="order-btn" data-unit="" data-cost="0" onclick="selectOrder(this)">
+      <div class="order-unit">⏸ 空過</div>
+      <div class="order-cost">無消耗</div>
+    </button>
+  </div>
+
+  <div class="controls">
+    <button class="btn-primary" onclick="nextRound()">▶ 執行下一回合</button>
+    <button class="btn-main" onclick="resetGame()">↺ 重置遊戲</button>
+  </div>
+
+  <div class="section-title">已部署部隊</div>
+  <div class="deployed-list" id="deployed-list">
+    <span class="empty-msg">尚無部署</span>
+  </div>
+
+  <div class="log">
+    <div class="log-header">
+      <span>戰報記錄</span>
+      <span id="log-count">0 條</span>
+    </div>
+    <div class="log-body" id="log-body">
+      <div class="log-line info">等待你的第一道命令...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let state = { gold: 150, round: 0, barrA: [], barrB: [], deployed: [] };
+  let selectedUnit = '劍士';
+  let selectedCost = 20;
+
+  function selectOrder(btn) {
+    document.querySelectorAll('.order-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedUnit = btn.dataset.unit;
+    selectedCost = parseInt(btn.dataset.cost) || 0;
+  }
+
+  function addLog(msg, type = '') {
+    const div = document.createElement('div');
+    div.className = 'log-line' + (type ? ' ' + type : '');
+    div.textContent = msg;
+    const body = document.getElementById('log-body');
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    const all = body.querySelectorAll('.log-line').length;
+    document.getElementById('log-count').textContent = all + ' 條';
+  }
+
+  function render() {
+    const renderQueue = (items, cls, el) => {
+      el.innerHTML = items.length === 0
+        ? '<span class="empty-msg">待命中</span>'
+        : items.map(u => `<span class="unit-pill ${cls}">${u}</span>`).join('');
+    };
+    renderQueue(state.barrA, 'pill-a', document.getElementById('barracks-a-items'));
+    renderQueue(state.barrB, 'pill-b', document.getElementById('barracks-b-items'));
+    document.getElementById('a-count').textContent = state.barrA.length + ' / 2';
+    document.getElementById('b-count').textContent = state.barrB.length + ' / 2';
+    document.getElementById('gold-display').textContent = state.gold;
+    document.getElementById('round-display').textContent = state.round;
+    document.getElementById('deployed-count').textContent = state.deployed.length;
+    const dl = document.getElementById('deployed-list');
+    dl.innerHTML = state.deployed.length === 0
+      ? '<span class="empty-msg">尚無部署</span>'
+      : state.deployed.map(u => `<span class="deployed-pill">${u}</span>`).join('');
+  }
+
+  function nextRound() {
+    addLog(`─── 第 ${state.round} 回合 ───`, 'round-head');
+
+    if (state.round % 2 === 0) {
+      if (state.barrA.length > 0) {
+        const u = state.barrA.shift();
+        state.deployed.push(u);
+        addLog(`A 廠生產完成：${u} 出列！`, 'success');
+      } else {
+        addLog('A 廠沒東西可做 (Underflow 防護成功)', 'warn');
+      }
+      if (state.barrB.length > 0) {
+        const u = state.barrB.shift();
+        state.deployed.push(u);
+        addLog(`B 廠生產完成：${u} 出列！`, 'success');
+      } else {
+        addLog('B 廠沒東西可做 (Underflow 防護成功)', 'warn');
+      }
+    }
+
+    if (!selectedUnit) {
+      addLog('玩家本回合無動作，單純推進時間', 'info');
+    } else if (state.barrA.length >= 2 && state.barrB.length >= 2) {
+      addLog(`產線全滿！${selectedUnit} 訂單拒絕`, 'error');
+    } else if (state.gold < selectedCost) {
+      addLog('黃金不足，無法生產', 'error');
+    } else {
+      state.gold -= selectedCost;
+      if (state.barrB.length < state.barrA.length) {
+        state.barrB.push(selectedUnit);
+        addLog(`${selectedUnit} 分派至 B 廠（剩餘黃金：${state.gold}）`, 'success');
+      } else {
+        state.barrA.push(selectedUnit);
+        addLog(`${selectedUnit} 分派至 A 廠（剩餘黃金：${state.gold}）`, 'success');
+      }
+    }
+
+    addLog(`A: [${state.barrA.join(', ')}]  B: [${state.barrB.join(', ')}]`);
+    state.round++;
+    render();
+  }
+
+  function resetGame() {
+    state = { gold: 150, round: 0, barrA: [], barrB: [], deployed: [] };
+    document.getElementById('log-body').innerHTML = '<div class="log-line info">遊戲已重置，等待你的命令...</div>';
+    document.getElementById('log-count').textContent = '0 條';
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>
